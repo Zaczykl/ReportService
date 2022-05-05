@@ -4,6 +4,7 @@ using ReportService.Core.Repositories;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
@@ -26,20 +27,32 @@ namespace ReportService
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         private Email _email;
         private GenerateHtmlEmail _generateHtml = new GenerateHtmlEmail();
-        private const string _emailReceiver = "zaczyk.l@gmail.com";
+        private string emailReceiver;
 
         public ReportService()
         {
-            InitializeComponent();
-            _email = new Email(new EmailParams
+            InitializeComponent();            
+            
+            try
             {
-                HostSmtp = "smtp.gmail.com",
-                Port = 587,
-                EnableSsl = true,
-                SenderName = "ReportService",
-                SenderEmail = "reportservice85@gmail.com",
-                SenderEmailPassword = "poardkxbjubgxcbd"
-            });
+                emailReceiver = ConfigurationManager.AppSettings["ReceiverEmail"];
+
+                _email = new Email(new EmailParams
+                {
+                    HostSmtp = ConfigurationManager.AppSettings["HostSmtp"],
+                    Port = Convert.ToInt32(ConfigurationManager.AppSettings["Port"]),
+                    EnableSsl = Convert.ToBoolean(ConfigurationManager.AppSettings["EnableSsl"]),
+                    SenderName = ConfigurationManager.AppSettings["SenderName"],
+                    SenderEmail = ConfigurationManager.AppSettings["SenderEmail"],
+                    SenderEmailPassword = ConfigurationManager.AppSettings["SenderEmailPassword"],
+                });
+            }
+            catch (Exception ex)
+            {
+
+                Logger.Error(ex, ex.Message);
+                throw new Exception(ex.Message);
+            }
         }
 
         protected override void OnStart(string[] args)
@@ -70,7 +83,7 @@ namespace ReportService
             if (errors == null || !errors.Any())
                 return;
 
-            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, INTERVAL_IN_MINUTES),_emailReceiver);
+            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, INTERVAL_IN_MINUTES),emailReceiver);
             Logger.Info("Error sent.");
         }
 
@@ -84,7 +97,7 @@ namespace ReportService
             if (report == null)
                 return;
 
-            await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), _emailReceiver);
+            await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
             _reportRepository.ReportSent(report);
             Logger.Info("Report sent.");
         }
