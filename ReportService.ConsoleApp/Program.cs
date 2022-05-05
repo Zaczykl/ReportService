@@ -1,4 +1,5 @@
-﻿using EmailSender;
+﻿using Cipher;
+using EmailSender;
 using ReportService.Core;
 using ReportService.Core.Doamins;
 using System;
@@ -9,8 +10,16 @@ namespace ReportService.ConsoleApp
 {
     class Program
     {
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
+            var stringCipher = new StringCipher("1");
+            var encryptedPassword = stringCipher.Encrypt("hasło");
+            var decryptedPassword = stringCipher.Decrypt(encryptedPassword);
+            Console.WriteLine(encryptedPassword);
+            Console.WriteLine(decryptedPassword);
+
+
+            return;
             var emailReceiver = "zaczyk.l@gmail.com";
             var _generateHtml = new GenerateHtmlEmail();
 
@@ -66,16 +75,16 @@ namespace ReportService.ConsoleApp
             };
 
             Console.WriteLine("Wysyłanie e-mail (Raport dobowy)");
-            await email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
+            email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver).Wait();
             Console.WriteLine("Wysłano e-mail (Raport dobowy)");
 
 
 
             Console.WriteLine("Wysyłanie e-mail (Błędy w aplikacji)");
 
-            await email.Send("Błędy w aplikacji",
+            email.Send("Błędy w aplikacji",
                 _generateHtml.GenerateErrors(errors,10),
-                emailReceiver);
+                emailReceiver).Wait();
             Console.WriteLine("Wysłano e-mail (Błędy w aplikacji)");
 
             

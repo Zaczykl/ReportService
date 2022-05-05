@@ -85,6 +85,10 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Cipher\Cipher.csproj">
+      <Project>{4DB019CF-A715-486C-BC37-5FDAAA411ED5}</Project>
+      <Name>Cipher</Name>
+    </ProjectReference>
     <ProjectReference Include="..\EmailSender\EmailSender.csproj">
       <Project>{7A84BA34-0C11-4A4F-984C-6FDC0094B197}</Project>
       <Name>EmailSender</Name>

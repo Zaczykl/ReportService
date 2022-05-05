@@ -1,4 +1,5 @@
-﻿using EmailSender;
+﻿using Cipher;
+using EmailSender;
 using ReportService.Core;
 using ReportService.Core.Repositories;
 using System;
@@ -28,6 +29,7 @@ namespace ReportService
         private Email _email;
         private GenerateHtmlEmail _generateHtml = new GenerateHtmlEmail();
         private string emailReceiver;
+        private StringCipher _stringCipher = new StringCipher("CABE99B7-721A-4934-B7C4-001E2B3DA53E");
 
         public ReportService()
         {
@@ -44,8 +46,8 @@ namespace ReportService
                     EnableSsl = Convert.ToBoolean(ConfigurationManager.AppSettings["EnableSsl"]),
                     SenderName = ConfigurationManager.AppSettings["SenderName"],
                     SenderEmail = ConfigurationManager.AppSettings["SenderEmail"],
-                    SenderEmailPassword = ConfigurationManager.AppSettings["SenderEmailPassword"],
-                });
+                    SenderEmailPassword = DecryptSenderEmailPassword()
+            });
             }
             catch (Exception ex)
             {
@@ -53,6 +55,20 @@ namespace ReportService
                 Logger.Error(ex, ex.Message);
                 throw new Exception(ex.Message);
             }
+        }
+
+        private string DecryptSenderEmailPassword()
+        {
+            var encryptedPassword = ConfigurationManager.AppSettings["SenderEmailPassword"];
+
+            if (encryptedPassword.StartsWith("encrypt:"))
+            {
+                encryptedPassword = _stringCipher.Encrypt(encryptedPassword.Replace("encrypt:", ""));
+                var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
+                configFile.AppSettings.Settings["SenderEmailPassword"].Value = encryptedPassword;
+                configFile.Save();
+            }
+            return _stringCipher.Decrypt(encryptedPassword);
         }
 
         protected override void OnStart(string[] args)
