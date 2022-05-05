@@ -17,7 +17,7 @@ namespace ReportService
     
     public partial class ReportService : ServiceBase
     {
-        private const int SEND_HOUR = 8;
+        private const int SEND_HOUR = 13;
         private const int INTERVAL_IN_MINUTES = 30;
         private const int MILISECONDS_IN_ONE_MINUTE= 60 * 1000;
         private Timer _timer = new Timer(INTERVAL_IN_MINUTES * MILISECONDS_IN_ONE_MINUTE);
@@ -36,8 +36,8 @@ namespace ReportService
                 HostSmtp = "smtp.gmail.com",
                 Port = 587,
                 EnableSsl = true,
-                SenderEmail = "ŁZ",
-                SenderName = "reportservice85@gmail.com",
+                SenderName = "ReportService",
+                SenderEmail = "reportservice85@gmail.com",
                 SenderEmailPassword = "poardkxbjubgxcbd"
             });
         }
