@@ -19,10 +19,11 @@ namespace ReportService
     
     public partial class ReportService : ServiceBase
     {
-        private const int SEND_HOUR = 13;
-        private const int INTERVAL_IN_MINUTES = 30;
+        private int sendHour;
+        private int intervalInMinutes;
+        private bool toSend;
         private const int MILISECONDS_IN_ONE_MINUTE= 60 * 1000;
-        private Timer _timer = new Timer(INTERVAL_IN_MINUTES * MILISECONDS_IN_ONE_MINUTE);
+        private Timer _timer;
         private ErrorRepository _errorRepository=new ErrorRepository();
         private ReportRepository _reportRepository=new ReportRepository();
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
@@ -30,6 +31,7 @@ namespace ReportService
         private GenerateHtmlEmail _generateHtml = new GenerateHtmlEmail();
         private string emailReceiver;
         private StringCipher _stringCipher = new StringCipher("CABE99B7-721A-4934-B7C4-001E2B3DA53E");
+        private const string NOT_ENCRYPTED_PASSWORD_PREFIX= "encrypt:";
 
         public ReportService()
         {
@@ -37,8 +39,11 @@ namespace ReportService
             
             try
             {
+                toSend = Convert.ToBoolean(ConfigurationManager.AppSettings["toSend"]);
+                sendHour =Convert.ToInt32(ConfigurationManager.AppSettings["sendHour"]);
                 emailReceiver = ConfigurationManager.AppSettings["ReceiverEmail"];
-
+                intervalInMinutes = Convert.ToInt32(ConfigurationManager.AppSettings["IntervalInMinutesForSendingErrors"]);
+                _timer = new Timer(intervalInMinutes * MILISECONDS_IN_ONE_MINUTE);
                 _email = new Email(new EmailParams
                 {
                     HostSmtp = ConfigurationManager.AppSettings["HostSmtp"],
@@ -51,7 +56,6 @@ namespace ReportService
             }
             catch (Exception ex)
             {
-
                 Logger.Error(ex, ex.Message);
                 throw new Exception(ex.Message);
             }
@@ -61,9 +65,9 @@ namespace ReportService
         {
             var encryptedPassword = ConfigurationManager.AppSettings["SenderEmailPassword"];
 
-            if (encryptedPassword.StartsWith("encrypt:"))
+            if (encryptedPassword.StartsWith(NOT_ENCRYPTED_PASSWORD_PREFIX))
             {
-                encryptedPassword = _stringCipher.Encrypt(encryptedPassword.Replace("encrypt:", ""));
+                encryptedPassword = _stringCipher.Encrypt(encryptedPassword.Replace(NOT_ENCRYPTED_PASSWORD_PREFIX, ""));
                 var configFile = ConfigurationManager.OpenExeConfiguration(ConfigurationUserLevel.None);
                 configFile.AppSettings.Settings["SenderEmailPassword"].Value = encryptedPassword;
                 configFile.Save();
@@ -95,18 +99,18 @@ namespace ReportService
 
         private async Task SendError()
         {
-            var errors=_errorRepository.GetLastErrors(INTERVAL_IN_MINUTES);
+            var errors=_errorRepository.GetLastErrors(intervalInMinutes);
             if (errors == null || !errors.Any())
                 return;
 
-            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, INTERVAL_IN_MINUTES),emailReceiver);
+            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, intervalInMinutes),emailReceiver);
             Logger.Info("Error sent.");
         }
 
         private async Task SendReport()
         {
             var actualHour = DateTime.Now.Hour;
-            if (actualHour < SEND_HOUR)
+            if (actualHour < sendHour)
                 return;
 
             var report = _reportRepository.GetLastNotSendReport();
