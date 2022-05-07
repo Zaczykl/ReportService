@@ -109,17 +109,20 @@ namespace ReportService
 
         private async Task SendReport()
         {
-            var actualHour = DateTime.Now.Hour;
-            if (actualHour < sendHour)
-                return;
+            if (toSend)
+            {
+                var actualHour = DateTime.Now.Hour;
+                if (actualHour < sendHour)
+                    return;
 
-            var report = _reportRepository.GetLastNotSendReport();
-            if (report == null)
-                return;
+                var report = _reportRepository.GetLastNotSendReport();
+                if (report == null)
+                    return;
 
-            await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
-            _reportRepository.ReportSent(report);
-            Logger.Info("Report sent.");
+                await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
+                _reportRepository.ReportSent(report);
+                Logger.Info("Report sent.");
+            }
         }
 
         protected override void OnStop()
