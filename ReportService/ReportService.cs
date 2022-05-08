@@ -16,34 +16,34 @@ using System.Timers;
 
 namespace ReportService
 {
-    
+
     public partial class ReportService : ServiceBase
     {
-        private int sendHour;
-        private int intervalInMinutes;
-        private bool toSend;
-        private const int MILISECONDS_IN_ONE_MINUTE= 60 * 1000;
+        private int _sendHour;
+        private int _intervalInMinutes;
+        private bool _toSend;
+        private const int MILISECONDS_IN_ONE_MINUTE = 60 * 1000;
         private Timer _timer;
-        private ErrorRepository _errorRepository=new ErrorRepository();
-        private ReportRepository _reportRepository=new ReportRepository();
+        private ErrorRepository _errorRepository = new ErrorRepository();
+        private ReportRepository _reportRepository = new ReportRepository();
         private static readonly NLog.Logger Logger = NLog.LogManager.GetCurrentClassLogger();
         private Email _email;
         private GenerateHtmlEmail _generateHtml = new GenerateHtmlEmail();
         private string emailReceiver;
         private StringCipher _stringCipher = new StringCipher("CABE99B7-721A-4934-B7C4-001E2B3DA53E");
-        private const string NOT_ENCRYPTED_PASSWORD_PREFIX= "encrypt:";
+        private const string NOT_ENCRYPTED_PASSWORD_PREFIX = "encrypt:";
 
         public ReportService()
         {
-            InitializeComponent();            
-            
+            InitializeComponent();
+
             try
             {
-                toSend = Convert.ToBoolean(ConfigurationManager.AppSettings["toSend"]);
-                sendHour =Convert.ToInt32(ConfigurationManager.AppSettings["sendHour"]);
+                _toSend = Convert.ToBoolean(ConfigurationManager.AppSettings["toSend"]);
+                _sendHour = Convert.ToInt32(ConfigurationManager.AppSettings["sendHour"]);
                 emailReceiver = ConfigurationManager.AppSettings["ReceiverEmail"];
-                intervalInMinutes = Convert.ToInt32(ConfigurationManager.AppSettings["IntervalInMinutesForSendingErrors"]);
-                _timer = new Timer(intervalInMinutes * MILISECONDS_IN_ONE_MINUTE);
+                _intervalInMinutes = Convert.ToInt32(ConfigurationManager.AppSettings["IntervalInMinutesForSendingErrors"]);
+                _timer = new Timer(_intervalInMinutes * MILISECONDS_IN_ONE_MINUTE);
                 _email = new Email(new EmailParams
                 {
                     HostSmtp = ConfigurationManager.AppSettings["HostSmtp"],
@@ -52,7 +52,7 @@ namespace ReportService
                     SenderName = ConfigurationManager.AppSettings["SenderName"],
                     SenderEmail = ConfigurationManager.AppSettings["SenderEmail"],
                     SenderEmailPassword = DecryptSenderEmailPassword()
-            });
+                });
             }
             catch (Exception ex)
             {
@@ -84,7 +84,7 @@ namespace ReportService
         }
 
         private async void DoWork(object sender, ElapsedEventArgs e)
-        {            
+        {
             try
             {
                 await SendError();
@@ -92,37 +92,38 @@ namespace ReportService
             }
             catch (Exception ex)
             {
-                Logger.Error(ex,ex.Message);
+                Logger.Error(ex, ex.Message);
                 throw new Exception(ex.Message);
             }
         }
 
         private async Task SendError()
         {
-            var errors=_errorRepository.GetLastErrors(intervalInMinutes);
+            var errors = _errorRepository.GetLastErrors(_intervalInMinutes);
             if (errors == null || !errors.Any())
                 return;
 
-            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, intervalInMinutes),emailReceiver);
+            await _email.Send("Błędy w aplikacji", _generateHtml.GenerateErrors(errors, _intervalInMinutes), emailReceiver);
             Logger.Info("Error sent.");
         }
 
         private async Task SendReport()
         {
-            if (toSend)
-            {
-                var actualHour = DateTime.Now.Hour;
-                if (actualHour < sendHour)
-                    return;
+            if (!_toSend)
+                return;
 
-                var report = _reportRepository.GetLastNotSendReport();
-                if (report == null)
-                    return;
+            var actualHour = DateTime.Now.Hour;
+            if (actualHour < _sendHour)
+                return;
 
-                await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
-                _reportRepository.ReportSent(report);
-                Logger.Info("Report sent.");
-            }
+            var report = _reportRepository.GetLastNotSendReport();
+            if (report == null)
+                return;
+
+            await _email.Send("Raport dobowy", _generateHtml.GenerateReport(report), emailReceiver);
+            _reportRepository.ReportSent(report);
+            Logger.Info("Report sent.");
+
         }
 
         protected override void OnStop()
